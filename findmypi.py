@@ -14,21 +14,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import smtplib, string, subprocess, time, socket, re
+import smtplib, string, subprocess, time, socket, re,urllib2
 
 # Import ./settings.py file
 # If this fails for you, copy settings_example.py to settings.py and change the values
 import settings
 
 def get_ifconfig():
-    output_if = subprocess.Popen(['ifconfig'], stdout=subprocess.PIPE).communicate()[0]
+    request = urllib2.Request("http://www.whereismyip.com/")
+    request.add_header('User-Agent', 'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:22.0) Gecko/20100101 Firefox/22.0')
+    readhttp=urllib2.urlopen(request,timeout=10).read()
+    ip=re.search('\d+\.\d+\.\d+\.\d',readhttp).group(0)
+    return ip
 
-    # ifconfig will always have at least 'lo loopback' as match for inet addr
-    # thus we want to find more than one interface with IP
-    if (len(re.findall("inet addr", output_if)) > 1):
-        return (True, output_if)
-    else:
-        return (False, None)
+    
 
 def send_mail(settings, BODY):
     try:
@@ -48,16 +47,14 @@ while (not ifconfig[0]):
     time.sleep(1)
     ifconfig = get_ifconfig()
 
-output_cpu = open('/proc/cpuinfo', 'r').read()
-
 BODY = string.join((
 "From: %s" % settings.fromaddr,
 "To: %s" % settings.toaddr,
 "Subject: Your RasberryPi just booted at " + time.ctime(),
 "",
-ifconfig[1],
-output_cpu,
+ifconfig,
 ), "\r\n")
 
 print("Sending email ...")
 send_mail(settings, BODY)
+
